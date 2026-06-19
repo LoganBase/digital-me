@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Additional utility styles for nice presentation (matching original style) */
+@layer base {
+  body {
+    background-color: #090D16;
+    color: #D8E4F2;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+::-webkit-scrollbar-track {
+  background: #090D16;
+}
+::-webkit-scrollbar-thumb {
+  background: #1C2840;
+}
