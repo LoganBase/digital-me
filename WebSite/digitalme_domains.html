@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DigitalMe — The 13 Domains</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #080C12;
+    --surface: #0E1520;
+    --panel:   #121C2C;
+    --border:  #1A2840;
+    --text:    #E2EAF8;
+    --soft:    #8EA8C8;
+    --muted:   #4A6080;
+    --gold:    #C8922A;
+    --gold-lt: #E8B84B;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Canvas bg ── */
+  #bgCanvas {
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  /* ── Header ── */
+  .header {
+    position: relative; z-index: 10;
+    padding: 72px 48px 56px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.35em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: rise 0.9s ease forwards 0.1s;
+  }
+
+  .star-glyph {
+    display: inline-block;
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0;
+    animation: rise 0.9s ease forwards 0.3s;
+    filter: drop-shadow(0 0 24px rgba(200,146,42,0.6));
+  }
+
+  .title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(40px, 5.5vw, 76px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+    opacity: 0;
+    animation: rise 0.9s ease forwards 0.4s;
+  }
+
+  .title em { font-style: italic; color: var(--gold-lt); }
+
+  .subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    margin-top: 18px;
+    opacity: 0;
+    animation: rise 0.9s ease forwards 0.6s;
+  }
+
+  /* ── Orbit diagram ── */
+  .orbit-wrap {
+    position: relative; z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 20px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    min-height: 560px;
+    opacity: 0;
+    animation: rise 1s ease forwards 0.8s;
+  }
+
+  .orbit-svg { width: min(520px, 90vw); height: min(520px, 90vw); }
+
+  /* ── Stats bar ── */
+  .stats {
+    position: relative; z-index: 10;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--border);
+    opacity: 0;
+    animation: rise 0.8s ease forwards 1s;
+  }
+
+  .stat {
+    padding: 28px 32px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+  .stat:last-child { border-right: none; }
+
+  .stat-val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 40px;
+    font-weight: 300;
+    color: var(--gold-lt);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── Domain grid ── */
+  .domains {
+    position: relative; z-index: 10;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+
+  /* ── Domain card ── */
+  .domain-card {
+    background: var(--bg);
+    padding: 36px 32px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  .domain-card.visible {
+    animation: cardrise 0.55s ease forwards;
+  }
+
+  .domain-card:hover { background: var(--surface); }
+
+  .domain-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--c, #3B82F6), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .domain-card:hover::after { opacity: 0.5; }
+
+  /* Left accent bar */
+  .domain-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 3px;
+    background: var(--c, #3B82F6);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .domain-card:hover::before { opacity: 1; }
+
+  .domain-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .domain-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--c, #3B82F6) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c, #3B82F6) 25%, transparent);
+  }
+
+  .domain-meta { flex: 1; }
+
+  .domain-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--c, #3B82F6);
+    margin-bottom: 4px;
+    opacity: 0.8;
+  }
+
+  .domain-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  .domain-tagline {
+    font-size: 11px;
+    color: var(--c, #3B82F6);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    opacity: 0.75;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .domain-desc {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--soft);
+    font-weight: 300;
+    margin-bottom: 20px;
+  }
+
+  /* Data items */
+  .domain-data {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .data-tag {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 2px;
+    letter-spacing: 0.06em;
+    background: color-mix(in srgb, var(--c, #3B82F6) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c, #3B82F6) 20%, transparent);
+    color: var(--soft);
+  }
+
+  /* Agent info */
+  .domain-agent {
+    padding: 10px 14px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .agent-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--c, #3B82F6);
+    flex-shrink: 0;
+    box-shadow: 0 0 6px var(--c, #3B82F6);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .agent-text {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    line-height: 1.4;
+  }
+
+  /* Maturity */
+  .maturity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .maturity-label {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+  }
+
+  .maturity-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .maturity-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--c, #3B82F6);
+    width: var(--mat, 30%);
+    transition: width 1s ease 0.5s;
+  }
+
+  .maturity-tier {
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    color: var(--c, #3B82F6);
+    white-space: nowrap;
+  }
+
+  /* ── Core card — special ── */
+  .core-card {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #0A1220 0%, #0D1828 50%, #0A1220 100%);
+    border: 1px solid rgba(200,146,42,0.2);
+    padding: 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .core-card::before {
+    content: '✦';
+    position: absolute;
+    right: 48px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 200px;
+    color: var(--gold);
+    opacity: 0.03;
+    pointer-events: none;
+  }
+
+  .core-left .domain-name {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+
+  .core-desc {
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--soft);
+    font-weight: 300;
+  }
+
+  .core-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .core-layer {
+    padding: 16px 20px;
+    border-radius: 6px;
+    border: 1px solid rgba(200,146,42,0.15);
+    background: rgba(200,146,42,0.04);
+  }
+
+  .core-layer-name {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .core-layer-desc {
+    font-size: 13px;
+    color: var(--soft);
+    line-height: 1.5;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    position: relative; z-index: 10;
+    padding: 56px 48px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer-quote {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(16px, 2vw, 24px);
+    font-style: italic;
+    font-weight: 300;
+    color: var(--soft);
+    max-width: 680px;
+    margin: 0 auto 24px;
+    line-height: 1.6;
+  }
+
+  .footer-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+  }
+
+  /* ── Bus visualization ── */
+  .bus-section {
+    position: relative; z-index: 10;
+    padding: 48px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    opacity: 0;
+    animation: rise 0.8s ease forwards 1.1s;
+  }
+
+  .bus-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .bus-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .bus-node {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--soft);
+    background: var(--surface);
+    white-space: nowrap;
+    position: relative;
+    transition: all 0.2s;
+    cursor: default;
+    margin: 4px;
+    border-radius: 2px;
+  }
+
+  .bus-node:hover {
+    border-color: var(--gold);
+    color: var(--gold-lt);
+    background: rgba(200,146,42,0.06);
+  }
+
+  .bus-center {
+    padding: 14px 24px;
+    border: 1px solid rgba(200,146,42,0.4);
+    background: rgba(200,146,42,0.06);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--gold-lt);
+    letter-spacing: 0.1em;
+    border-radius: 4px;
+    margin: 8px 16px;
+  }
+
+  /* ── Animations ── */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes cardrise {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .core-card { grid-template-columns: 1fr; gap: 28px; }
+    .core-card::before { display: none; }
+    .orbit-wrap { min-height: 340px; }
+    .header { padding: 48px 24px 40px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<!-- Header -->
+<header class="header">
+  <div class="eyebrow">Digital Me · Architecture · Version 2.0</div>
+  <div class="star-glyph">✦</div>
+  <h1 class="title">The <em>13 Domains</em></h1>
+  <p class="subtitle">14 agents · 1 shared data bus · 1 sovereign commander</p>
+</header>
+
+<!-- Orbit SVG -->
+<div class="orbit-wrap">
+  <svg class="orbit-svg" viewBox="0 0 520 520" fill="none" xmlns="http://www.w3.org/2000/svg" id="orbitSvg">
+    <!-- Orbit rings -->
+    <circle cx="260" cy="260" r="220" stroke="#1A2840" stroke-width="1" stroke-dasharray="4 6"/>
+    <circle cx="260" cy="260" r="150" stroke="#1A2840" stroke-width="1" stroke-dasharray="4 6"/>
+    <circle cx="260" cy="260" r="80" stroke="#C8922A" stroke-width="1" stroke-opacity="0.3"/>
+
+    <!-- Spoke lines (13 spokes) -->
+    <g id="spokes" stroke="#1A2840" stroke-width="1" opacity="0.5"></g>
+
+    <!-- Domain nodes (outer ring) -->
+    <g id="outerNodes"></g>
+
+    <!-- Domain nodes (inner ring) -->
+    <g id="innerNodes"></g>
+
+    <!-- Core center -->
+    <circle cx="260" cy="260" r="52" fill="#0A1015" stroke="#C8922A" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="260" cy="260" r="40" fill="url(#coreGrad)" opacity="0.8"/>
+    <text x="260" y="253" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="14" fill="#E8B84B" font-weight="400">STAR OF</text>
+    <text x="260" y="271" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="14" fill="#E8B84B" font-style="italic">MIND</text>
+
+    <!-- Pulsing glow -->
+    <circle cx="260" cy="260" r="52" stroke="#C8922A" stroke-width="1" stroke-opacity="0.3">
+      <animate attributeName="r" values="52;62;52" dur="3s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values="0.3;0;0.3" dur="3s" repeatCount="indefinite"/>
+    </circle>
+
+    <defs>
+      <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#C8922A" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="#C8922A" stop-opacity="0.02"/>
+      </radialGradient>
+    </defs>
+  </svg>
+</div>
+
+<!-- Stats bar -->
+<div class="stats">
+  <div class="stat"><div class="stat-val">14</div><div class="stat-label">Domain Agents</div></div>
+  <div class="stat"><div class="stat-val">1</div><div class="stat-label">Shared Data Bus</div></div>
+  <div class="stat"><div class="stat-val">3</div><div class="stat-label">Holy Trinity Sources</div></div>
+  <div class="stat"><div class="stat-val">∞</div><div class="stat-label">Version History</div></div>
+</div>
+
+<!-- Shared bus -->
+<div class="bus-section">
+  <div class="bus-title">Shared Data Bus — Cross-Domain Signal Flow</div>
+  <div class="bus-diagram" id="busDiagram"></div>
+</div>
+
+<!-- Domains grid -->
+<main class="domains" id="domainsGrid"></main>
+
+<!-- Footer -->
+<footer class="footer">
+  <p class="footer-quote">"14 domains. 1 shared bus. 1 sovereign commander. The system runs beneath the life — never above it."</p>
+  <p class="footer-meta">DIGITAL ME &nbsp;·&nbsp; 13 DOMAINS + CORE &nbsp;·&nbsp; SOVEREIGNTY ARCHITECTURE V2.0</p>
+</footer>
+
+<script>
+// ── Domain data ───────────────────────────────────────────────────────────
+const domains = [
+  {
+    num: "00",
+    name: "Core",
+    icon: "✦",
+    color: "#C8922A",
+    tagline: "Star of Mind",
+    desc: "The gravitational center of the entire system. Not a domain to be optimized — the identity contract every agent reads before it does anything. Contains the Nucleus governed by the Lindy Effect and the Living Layer that evolves through the Holy Trinity.",
+    dataItems: ["Nucleus values", "Living layer", "Decision framework", "Non-negotiables", "Life stage", "Known blindspots"],
+    agent: "Meta-agent synthesizes all 13 domains and arbitrates cross-domain tensions through the Star of Mind",
+    maturity: 50,
+    tier: "Seed → Rich",
+    isCore: true,
+    layers: [
+      { name: "Nucleus", desc: "Deepest values governed by the Lindy Effect. Requires multi-agent consensus to update. Never passively overwritten." },
+      { name: "Living Layer", desc: "Current focus, active goals, life stage, known tensions. Evolves continuously through monthly audits and domain signals." },
+      { name: "Version History", desc: "Every version preserved permanently. A longitudinal self-portrait of a life in progress." }
+    ]
+  },
+  {
+    num: "01",
+    name: "Temporal",
+    icon: "⟳",
+    color: "#3B82F6",
+    tagline: "The Narrative Layer",
+    desc: "The glue that turns snapshots into story. Without time-stamped context, agents give you data. With it, they give you narrative — why things are the way they are and where they are heading.",
+    dataItems: ["Daily logs", "Weekly reviews", "Annual reviews", "Major decisions + reasoning", "Mood & energy", "Pattern history"],
+    agent: "Detects longitudinal patterns across all domains, matches current states to historical parallels, surfaces narrative insights",
+    maturity: 35,
+    tier: "Seed"
+  },
+  {
+    num: "02",
+    name: "Medical",
+    icon: "⚕",
+    color: "#F43F5E",
+    tagline: "Episodic · Reactive · Clinical",
+    desc: "Reactive and episodic — doctor visits, diagnoses, medications, lab results, insurance claims. The agent's job is memory, pattern detection, and advocacy. Brings the right data to the right appointment.",
+    dataItems: ["Lab results", "Doctor notes", "Conditions & diagnoses", "Medications", "Allergies", "Insurance claims"],
+    agent: "Monitors health markers longitudinally, flags upcoming appointments, detects symptom patterns across time, cross-references fitness signals",
+    maturity: 40,
+    tier: "Seed → Building"
+  },
+  {
+    num: "03",
+    name: "Fitness",
+    icon: "◈",
+    color: "#10B981",
+    tagline: "Continuous · Proactive · Performance",
+    desc: "Proactive and continuous — daily metrics, workout logs, wearable data, nutrition adjacent signals, sleep, recovery. The agent's job is optimization and accountability, but bounded by Principle 9's Just-in-Time threshold.",
+    dataItems: ["HRV data", "Workout logs", "Sleep metrics", "Recovery scores", "Body composition", "Training goals"],
+    agent: "Tracks performance trends, detects overtraining signals, cross-references medical domain for inflammation markers, protects recovery windows",
+    maturity: 65,
+    tier: "Building"
+  },
+  {
+    num: "04",
+    name: "Nutrition",
+    icon: "◉",
+    color: "#F59E0B",
+    tagline: "Food · Relationship · Fueling",
+    desc: "Distinct from fitness performance nutrition and medical dietary restrictions. Captures restaurant history, cuisine preferences, cooking habits, delivery patterns, and the relationship with food itself.",
+    dataItems: ["Meal logs", "Restaurant history", "Cuisine preferences", "Dietary patterns", "Nutritional targets", "Food relationships"],
+    agent: "Tracks fueling patterns against fitness performance, flags delivery spend trends to financial domain, monitors alignment with health goals",
+    maturity: 25,
+    tier: "Seed"
+  },
+  {
+    num: "05",
+    name: "Financial",
+    icon: "◇",
+    color: "#8B5CF6",
+    tagline: "Wealth · Autonomy · Freedom",
+    desc: "Tracks the full wealth picture — income, expenses, assets, liabilities, insurance, and tax. The Freedom Number lives here. The Behavioral Shield runs continuously. Wealth is measured in autonomy produced, not just assets accumulated.",
+    dataItems: ["Income streams", "Expense categories", "Investment portfolio", "Liabilities", "Insurance policies", "Freedom Number"],
+    agent: "Behavioral Shield against MLA and herd bias. Tracks Autonomy Impact Score on every major decision. Fires Critical Deficit Alert when wealth grows but flourishing declines",
+    maturity: 75,
+    tier: "Building → Rich"
+  },
+  {
+    num: "06",
+    name: "Career",
+    icon: "▲",
+    color: "#06B6D4",
+    tagline: "Trajectory · Growth · Reputation",
+    desc: "Most people have no structured record of their professional trajectory. Compensation history, performance reviews, skills inventory, network map, career goals. Invaluable when negotiating, pivoting, or planning the next decade.",
+    dataItems: ["Compensation history", "Performance reviews", "Skills inventory", "Network map", "Career goals", "Industry signals"],
+    agent: "Tracks career trajectory and market positioning, flags skill gaps, cross-references financial domain for compensation strategy, monitors stress signals feeding other domains",
+    maturity: 45,
+    tier: "Seed → Building"
+  },
+  {
+    num: "07",
+    name: "Legal",
+    icon: "⊡",
+    color: "#64748B",
+    tagline: "Protection · Contracts · Estate",
+    desc: "Wills, trusts, contracts, insurance policies, subscriptions with legal weight. Most people discover gaps here at the worst possible moment. The entropy tracker watches what's expiring before it becomes a crisis.",
+    dataItems: ["Will & estate docs", "Contracts", "Insurance policies", "Subscriptions", "Expiry dates", "Legal obligations"],
+    agent: "Proactively surfaces expiring documents, flags missing estate planning gaps, monitors contract obligations, cross-references home and financial domains",
+    maturity: 30,
+    tier: "Seed"
+  },
+  {
+    num: "08",
+    name: "Family",
+    icon: "◎",
+    color: "#EC4899",
+    tagline: "Presence · Milestones · Depth",
+    desc: "Distinct from social — the innermost circle. Tracks family structure, key milestones, commitments, and the quality of presence with each person. The Human Moments engine draws primarily from here.",
+    dataItems: ["Family graph", "Milestones", "Birthdays", "Commitments", "Presence logs", "Shared goals"],
+    agent: "Powers the Human Moments engine, tracks relationship presence quality, surfaces upcoming milestones, monitors family entropy with human-concern framing — not task framing",
+    maturity: 50,
+    tier: "Seed → Building"
+  },
+  {
+    num: "09",
+    name: "Home",
+    icon: "⬡",
+    color: "#84CC16",
+    tagline: "Property · Maintenance · Assets",
+    desc: "Property deeds, mortgage, appliance warranties, maintenance logs, contractor contacts, utility history. Especially powerful for multiple properties or buy/sell planning. The entropy tracker watches what silently degrades.",
+    dataItems: ["Property docs", "Mortgage details", "Maintenance logs", "Warranties", "Contractor contacts", "Utility history"],
+    agent: "Tracks maintenance cycles, surfaces upcoming obligations, cross-references legal and financial domains, flags asset depreciation patterns",
+    maturity: 35,
+    tier: "Seed"
+  },
+  {
+    num: "10",
+    name: "Social",
+    icon: "◯",
+    color: "#F97316",
+    tagline: "Relationships · Energy · Connection",
+    desc: "Distinct from family. Friends, mentors, professional contacts, community ties. Relationship health tracking — who have you lost touch with, who adds energy vs drains it. The entropy tracker watches relationships with human concern, not CRM logic.",
+    dataItems: ["Relationship graph", "Contact history", "Energy mapping", "Mentor network", "Community ties", "Relationship rhythms"],
+    agent: "Surfaces relationship entropy with human-concern framing, tracks natural contact rhythms per relationship, cross-references mind domain for social energy patterns",
+    maturity: 30,
+    tier: "Seed"
+  },
+  {
+    num: "11",
+    name: "Travel",
+    icon: "◈",
+    color: "#0EA5E9",
+    tagline: "Experiences · Logistics · Bucket List",
+    desc: "Rich enough to stand alone. Historical experiences, active bookings, passport and visa status, loyalty programs, travel style preferences, seasonal windows, and the bucket list that keeps the Life Clock honest.",
+    dataItems: ["Trip history", "Upcoming bookings", "Passport & visas", "Loyalty programs", "Travel preferences", "Bucket list"],
+    agent: "Tracks passport expiry against planned trips, surfaces visa requirements proactively, monitors loyalty program optimization, cross-references financial domain for travel spend patterns",
+    maturity: 55,
+    tier: "Building"
+  },
+  {
+    num: "12",
+    name: "Mind",
+    icon: "◉",
+    color: "#A855F7",
+    tagline: "Learning · Beliefs · Mental State",
+    desc: "The most underrated domain. Books read, courses taken, beliefs held, therapy notes, journal sentiment over time, personal frameworks. What makes your digital twin think like you — not just report your data.",
+    dataItems: ["Books & courses", "Beliefs & frameworks", "Journal sentiment", "Therapy notes", "Mental state logs", "Personal philosophy"],
+    agent: "Feeds the Star of Mind living layer, tracks intellectual evolution, cross-references epistemic domain for belief consistency, powers the Green Hat in Six Hat analyses",
+    maturity: 25,
+    tier: "Seed"
+  },
+  {
+    num: "13",
+    name: "Epistemic",
+    icon: "⊕",
+    color: "#2DD4BF",
+    tagline: "Integrity · Bias · Sovereignty",
+    desc: "Information is a cognitive environment. Tracks input sources, influence mapping, bias audits, and position history. Houses the 10th Man protocol and Six Hat sub-agents. Defends the mind as sovereign territory against algorithmic colonisation.",
+    dataItems: ["Input tracking", "Influence map", "Bias audit", "Position history", "10th Man protocols", "Six Hat decisions"],
+    agent: "Daily epistemic injection of Shared Facts and Believable Dissent. Tracks Algorithmic Diversity Score. Runs 10th Man protocol on dangerous consensus. Houses all Six Hat sub-agents",
+    maturity: 20,
+    tier: "Seed"
+  }
+];
+
+// ── Orbit diagram ─────────────────────────────────────────────────────────
+function buildOrbit() {
+  const svg = document.getElementById('orbitSvg');
+  const cx = 260, cy = 260;
+  const outerR = 220, innerR = 150;
+
+  const outerDomains = [1,2,3,4,5,6,7]; // temporal, medical, fitness, nutrition, financial, career, legal
+  const innerDomains = [8,9,10,11,12,13]; // family, home, social, travel, mind, epistemic
+
+  const spokes = document.getElementById('spokes');
+  const outer = document.getElementById('outerNodes');
+  const inner = document.getElementById('innerNodes');
+
+  // Draw outer nodes
+  outerDomains.forEach((di, i) => {
+    const d = domains[di];
+    const angle = (i / outerDomains.length) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + outerR * Math.cos(angle);
+    const y = cy + outerR * Math.sin(angle);
+
+    // Spoke
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+    line.setAttribute('x2', x); line.setAttribute('y2', y);
+    line.setAttribute('stroke', d.color);
+    line.setAttribute('stroke-width', '0.5');
+    line.setAttribute('stroke-opacity', '0.2');
+    spokes.appendChild(line);
+
+    // Node circle
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x); circle.setAttribute('cy', y); circle.setAttribute('r', '18');
+    circle.setAttribute('fill', d.color); circle.setAttribute('fill-opacity', '0.12');
+    circle.setAttribute('stroke', d.color); circle.setAttribute('stroke-width', '1');
+    circle.setAttribute('stroke-opacity', '0.6');
+    outer.appendChild(circle);
+
+    // Icon
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', x); text.setAttribute('y', y + 1);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('font-size', '12'); text.setAttribute('fill', d.color);
+    text.textContent = d.icon;
+    outer.appendChild(text);
+
+    // Label
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const lx = cx + (outerR + 28) * Math.cos(angle);
+    const ly = cy + (outerR + 28) * Math.sin(angle);
+    label.setAttribute('x', lx); label.setAttribute('y', ly);
+    label.setAttribute('text-anchor', 'middle'); label.setAttribute('dominant-baseline', 'middle');
+    label.setAttribute('font-size', '9.5');
+    label.setAttribute('font-family', 'DM Mono, monospace');
+    label.setAttribute('fill', d.color); label.setAttribute('fill-opacity', '0.85');
+    label.textContent = d.name.toUpperCase();
+    outer.appendChild(label);
+  });
+
+  // Draw inner nodes
+  innerDomains.forEach((di, i) => {
+    const d = domains[di];
+    const angle = (i / innerDomains.length) * 2 * Math.PI - Math.PI / 6;
+    const x = cx + innerR * Math.cos(angle);
+    const y = cy + innerR * Math.sin(angle);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+    line.setAttribute('x2', x); line.setAttribute('y2', y);
+    line.setAttribute('stroke', d.color);
+    line.setAttribute('stroke-width', '0.5');
+    line.setAttribute('stroke-opacity', '0.2');
+    spokes.appendChild(line);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x); circle.setAttribute('cy', y); circle.setAttribute('r', '15');
+    circle.setAttribute('fill', d.color); circle.setAttribute('fill-opacity', '0.10');
+    circle.setAttribute('stroke', d.color); circle.setAttribute('stroke-width', '1');
+    circle.setAttribute('stroke-opacity', '0.5');
+    inner.appendChild(circle);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', x); text.setAttribute('y', y + 1);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('font-size', '10'); text.setAttribute('fill', d.color);
+    text.textContent = d.icon;
+    inner.appendChild(text);
+
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const lx = cx + (innerR + 24) * Math.cos(angle);
+    const ly = cy + (innerR + 24) * Math.sin(angle);
+    label.setAttribute('x', lx); label.setAttribute('y', ly);
+    label.setAttribute('text-anchor', 'middle'); label.setAttribute('dominant-baseline', 'middle');
+    label.setAttribute('font-size', '8.5');
+    label.setAttribute('font-family', 'DM Mono, monospace');
+    label.setAttribute('fill', d.color); label.setAttribute('fill-opacity', '0.8');
+    label.textContent = d.name.toUpperCase();
+    inner.appendChild(label);
+  });
+}
+
+// ── Bus diagram ───────────────────────────────────────────────────────────
+function buildBus() {
+  const bus = document.getElementById('busDiagram');
+  const nonCore = domains.filter(d => d.num !== '00');
+
+  nonCore.forEach(d => {
+    const node = document.createElement('div');
+    node.className = 'bus-node';
+    node.style.setProperty('--c', d.color);
+    node.style.borderColor = `${d.color}30`;
+    node.style.color = d.color;
+    node.innerHTML = `${d.icon} ${d.name}`;
+    bus.appendChild(node);
+
+    if (d.num === '06') {
+      const center = document.createElement('div');
+      center.className = 'bus-center';
+      center.innerHTML = '⟷ SHARED BUS ⟷';
+      bus.appendChild(center);
+    }
+  });
+}
+
+// ── Domain cards ──────────────────────────────────────────────────────────
+function buildCards() {
+  const grid = document.getElementById('domainsGrid');
+
+  domains.forEach(d => {
+    if (d.isCore) {
+      // Special core card
+      const card = document.createElement('div');
+      card.className = 'domain-card core-card visible';
+      card.style.setProperty('--c', d.color);
+      card.innerHTML = `
+        <div class="core-left">
+          <div class="domain-num">DOMAIN ${d.num} · FOUNDATION</div>
+          <div class="domain-name" style="font-family:'Cormorant Garamond',serif;color:var(--text)">${d.name} — <em style="color:var(--gold-lt);font-style:italic">Star of Mind</em></div>
+          <div class="domain-tagline" style="color:var(--gold);margin:12px 0 20px">${d.tagline}</div>
+          <p class="core-desc">${d.desc}</p>
+          <div class="domain-data" style="margin-top:20px">
+            ${d.dataItems.map(item => `<span class="data-tag" style="border-color:rgba(200,146,42,0.2);color:var(--soft)">${item}</span>`).join('')}
+          </div>
+        </div>
+        <div class="core-layers">
+          ${d.layers.map(l => `
+            <div class="core-layer">
+              <div class="core-layer-name">${l.name}</div>
+              <div class="core-layer-desc">${l.desc}</div>
+            </div>
+          `).join('')}
+          <div class="domain-agent" style="margin-top:4px">
+            <div class="agent-dot" style="background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>
+            <div class="agent-text">${d.agent}</div>
+          </div>
+        </div>
+      `;
+      grid.appendChild(card);
+      return;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'domain-card';
+    card.style.setProperty('--c', d.color);
+
+    const tierColor = d.tier.includes('Rich') ? '#10B981' : d.tier.includes('Building') ? '#3B82F6' : '#6B7FA3';
+
+    card.innerHTML = `
+      <div class="domain-header">
+        <div class="domain-icon" style="--c:${d.color}">${d.icon}</div>
+        <div class="domain-meta">
+          <div class="domain-num">DOMAIN ${d.num}</div>
+          <div class="domain-name">${d.name}</div>
+        </div>
+      </div>
+      <div class="domain-tagline">${d.tagline}</div>
+      <p class="domain-desc">${d.desc}</p>
+      <div class="domain-data">
+        ${d.dataItems.map(item => `<span class="data-tag">${item}</span>`).join('')}
+      </div>
+      <div class="domain-agent">
+        <div class="agent-dot"></div>
+        <div class="agent-text">${d.agent}</div>
+      </div>
+      <div class="maturity-row">
+        <span class="maturity-label">Data maturity</span>
+        <div class="maturity-bar">
+          <div class="maturity-fill" style="--mat:${d.maturity}%;background:${d.color}"></div>
+        </div>
+        <span class="maturity-tier" style="color:${tierColor}">${d.tier}</span>
+      </div>
+    `;
+
+    grid.appendChild(card);
+  });
+}
+
+// ── Background canvas ─────────────────────────────────────────────────────
+function initCanvas() {
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function init() {
+    particles = [];
+    for (let i = 0; i < 60; i++) {
+      particles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.2 + 0.3,
+        vx: (Math.random() - 0.5) * 0.15,
+        vy: (Math.random() - 0.5) * 0.15,
+        a: Math.random(),
+        da: (Math.random() - 0.5) * 0.005
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      p.x = (p.x + p.vx + W) % W;
+      p.y = (p.y + p.vy + H) % H;
+      p.a = Math.max(0.05, Math.min(0.5, p.a + p.da));
+      if (p.a <= 0.05 || p.a >= 0.5) p.da *= -1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${p.a * 0.4})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  init();
+  draw();
+  window.addEventListener('resize', () => { resize(); init(); });
+}
+
+// ── Intersection observer ─────────────────────────────────────────────────
+function initObserver() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach((entry, idx) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), idx * 60);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.domain-card:not(.core-card)').forEach(c => observer.observe(c));
+}
+
+// ── Maturity bars animate on scroll ──────────────────────────────────────
+function initMaturity() {
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.querySelectorAll('.maturity-fill').forEach(f => {
+          f.style.width = f.style.getPropertyValue('--mat') || f.style.width;
+        });
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.domain-card').forEach(c => obs.observe(c));
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+initCanvas();
+buildOrbit();
+buildBus();
+buildCards();
+initObserver();
+initMaturity();
+</script>
+</body>
+</html>

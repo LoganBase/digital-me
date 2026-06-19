@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DigitalMe — Data Source Tree</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Syne+Mono&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:     #0B0F18;
+  --paper:   #0F1520;
+  --lift:    #151E30;
+  --frame:   #1C2840;
+  --wire:    #243350;
+  --text:    #D8E4F2;
+  --dim:     #5A7090;
+  --faint:   #2A3A55;
+  --gold:    #D4A030;
+  --gold2:   #F0C060;
+  --holy1:   #4FC3F7;   /* perception — sky */
+  --holy2:   #81C784;   /* agent feedback — green */
+  --holy3:   #FF8A65;   /* hard data — ember */
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* grain overlay */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* ── Header ── */
+.hdr {
+  position: relative; z-index: 10;
+  padding: 64px 48px 48px;
+  border-bottom: 1px solid var(--frame);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.hdr-left { flex: 1; min-width: 280px; }
+
+.hdr-eye {
+  font-family: 'Syne Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  opacity: 0;
+  animation: up 0.7s ease forwards 0.1s;
+}
+
+.hdr-title {
+  font-family: 'Crimson Pro', serif;
+  font-size: clamp(36px, 5vw, 68px);
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  opacity: 0;
+  animation: up 0.7s ease forwards 0.25s;
+}
+
+.hdr-title strong {
+  font-weight: 400;
+  color: var(--gold2);
+  font-style: italic;
+}
+
+.hdr-sub {
+  font-family: 'Syne Mono', monospace;
+  font-size: 11px;
+  color: var(--dim);
+  margin-top: 14px;
+  letter-spacing: 0.08em;
+  line-height: 1.6;
+  opacity: 0;
+  animation: up 0.7s ease forwards 0.4s;
+}
+
+/* Trinity legend */
+.trinity {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  opacity: 0;
+  animation: up 0.7s ease forwards 0.55s;
+}
+
+.t-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Syne Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.t-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.t-label { color: var(--dim); }
+.t-name  { color: var(--text); }
+
+/* ── Tree container ── */
+.tree-wrap {
+  position: relative; z-index: 10;
+  padding: 48px 32px 64px;
+  overflow-x: auto;
+}
+
+.tree-canvas {
+  min-width: 1000px;
+  width: 100%;
+}
+
+/* ── Root node ── */
+.root-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0;
+  opacity: 0;
+  animation: up 0.8s ease forwards 0.6s;
+}
+
+.root-node {
+  background: linear-gradient(135deg, #1a2235 0%, #0f1825 100%);
+  border: 1.5px solid var(--gold);
+  border-radius: 8px;
+  padding: 18px 36px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 0 40px rgba(212,160,48,0.12), 0 0 0 1px rgba(212,160,48,0.06);
+}
+
+.root-glyph {
+  font-size: 22px;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 8px rgba(212,160,48,0.5));
+}
+
+.root-name {
+  font-family: 'Crimson Pro', serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--gold2);
+  letter-spacing: 0.02em;
+}
+
+.root-sub {
+  font-family: 'Syne Mono', monospace;
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+/* connector line down from root */
+.root-stem {
+  width: 2px;
+  height: 40px;
+  background: linear-gradient(to bottom, var(--gold), var(--wire));
+  margin: 0 auto;
+}
+
+/* ── Trinity row ── */
+.trinity-row {
+  display: flex;
+  justify-content: center;
+  gap: 1px;
+  opacity: 0;
+  animation: up 0.8s ease forwards 0.8s;
+}
+
+.trinity-col {
+  flex: 1;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* horizontal connector across trinity */
+.trinity-hbar {
+  height: 2px;
+  width: calc(100% - 60px);
+  margin: 0 30px;
+  display: flex;
+  opacity: 0;
+  animation: up 0.5s ease forwards 0.9s;
+}
+
+.trinity-hbar-inner {
+  flex: 1;
+  height: 2px;
+}
+
+/* stem up to trinity node */
+.t-stem-up {
+  width: 2px;
+  height: 32px;
+}
+
+/* Trinity pillar nodes */
+.t-pillar {
+  border-radius: 6px;
+  padding: 14px 20px;
+  text-align: center;
+  width: 200px;
+  border: 1px solid;
+  position: relative;
+}
+
+.t-pillar-icon { font-size: 18px; margin-bottom: 4px; }
+
+.t-pillar-name {
+  font-family: 'Crimson Pro', serif;
+  font-size: 17px;
+  font-weight: 400;
+  margin-bottom: 2px;
+}
+
+.t-pillar-sub {
+  font-family: 'Syne Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* stem down from trinity */
+.t-stem-down {
+  width: 2px;
+  height: 36px;
+}
+
+/* ── Source cluster ── */
+.source-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.source-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+}
+
+/* source branch connector */
+.branch-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.branch-hline {
+  height: 1px;
+  background: var(--wire);
+  width: 80%;
+}
+
+.source-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 6px;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.src {
+  border-radius: 4px;
+  padding: 9px 12px;
+  border: 1px solid;
+  position: relative;
+  cursor: default;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.src:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.src-icon {
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.src-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  margin-bottom: 3px;
+}
+
+.src-examples {
+  font-family: 'Syne Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  line-height: 1.5;
+  opacity: 0.65;
+}
+
+/* vertical stem between nodes */
+.vstem {
+  width: 1px;
+  min-height: 16px;
+  background: var(--wire);
+  align-self: center;
+}
+
+/* ── Domain mapping section ── */
+.mapping-section {
+  position: relative; z-index: 10;
+  border-top: 1px solid var(--frame);
+  padding: 48px 32px;
+}
+
+.section-title {
+  font-family: 'Syne Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1px;
+  background: var(--frame);
+  border: 1px solid var(--frame);
+}
+
+.map-card {
+  background: var(--ink);
+  padding: 22px 24px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: background 0.2s;
+}
+
+.map-card:hover { background: var(--lift); }
+.map-card.visible { animation: cardIn 0.5s ease forwards; }
+
+.map-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.map-icon {
+  width: 32px; height: 32px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.map-name {
+  font-family: 'Crimson Pro', serif;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.map-num {
+  font-family: 'Syne Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  margin-left: auto;
+  opacity: 0.4;
+}
+
+.map-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.map-src-tag {
+  font-family: 'Syne Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 3px 7px;
+  border-radius: 2px;
+  border: 1px solid;
+}
+
+/* ── Footer ── */
+.ftr {
+  position: relative; z-index: 10;
+  padding: 48px;
+  text-align: center;
+  border-top: 1px solid var(--frame);
+}
+
+.ftr-quote {
+  font-family: 'Crimson Pro', serif;
+  font-size: clamp(16px, 2vw, 22px);
+  font-style: italic;
+  font-weight: 300;
+  color: var(--dim);
+  max-width: 640px;
+  margin: 0 auto 16px;
+  line-height: 1.6;
+}
+
+.ftr-meta {
+  font-family: 'Syne Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  color: var(--faint);
+  text-transform: uppercase;
+}
+
+/* ── Animations ── */
+@keyframes up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cardIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: var(--ink); }
+::-webkit-scrollbar-thumb { background: var(--frame); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-eye">Digital Me · Data Architecture · V2.0</div>
+    <h1 class="hdr-title">Data <strong>Sources</strong><br>& Domain Flow</h1>
+    <p class="hdr-sub">Every insight traces to one of three roots.<br>Every domain draws from the Holy Trinity.</p>
+  </div>
+  <div class="trinity">
+    <div class="t-item">
+      <div class="t-dot" style="background:var(--holy1);box-shadow:0 0 6px var(--holy1)"></div>
+      <span class="t-label">Source 1 ·</span>
+      <span class="t-name">Perception Data</span>
+    </div>
+    <div class="t-item">
+      <div class="t-dot" style="background:var(--holy2);box-shadow:0 0 6px var(--holy2)"></div>
+      <span class="t-label">Source 2 ·</span>
+      <span class="t-name">Agent Feedback</span>
+    </div>
+    <div class="t-item">
+      <div class="t-dot" style="background:var(--holy3);box-shadow:0 0 6px var(--holy3)"></div>
+      <span class="t-label">Source 3 ·</span>
+      <span class="t-name">Hard Data</span>
+    </div>
+  </div>
+</header>
+
+<!-- TREE -->
+<div class="tree-wrap">
+  <div class="tree-canvas" id="treeCanvas"></div>
+</div>
+
+<!-- DOMAIN MAPPING -->
+<section class="mapping-section">
+  <div class="section-title">Domain → Primary Source Mapping</div>
+  <div class="mapping-grid" id="mappingGrid"></div>
+</section>
+
+<!-- Footer -->
+<footer class="ftr">
+  <p class="ftr-quote">"Every insight the system surfaces is traceable to its source. Every conflict between sources is data. The Holy Trinity ensures no single input colonises the truth."</p>
+  <p class="ftr-meta">Digital Me · Holy Trinity Model · Sovereignty Architecture V2.0</p>
+</footer>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────
+
+const COLORS = {
+  P: { main: '#4FC3F7', bg: 'rgba(79,195,247,0.07)', border: 'rgba(79,195,247,0.25)', dark: 'rgba(79,195,247,0.04)' },
+  A: { main: '#81C784', bg: 'rgba(129,199,132,0.07)', border: 'rgba(129,199,132,0.25)', dark: 'rgba(129,199,132,0.04)' },
+  H: { main: '#FF8A65', bg: 'rgba(255,138,101,0.07)', border: 'rgba(255,138,101,0.25)', dark: 'rgba(255,138,101,0.04)' },
+};
+
+const trinity = [
+  {
+    key: 'P',
+    icon: '◎',
+    name: 'Perception Data',
+    sub: 'Subjective · Felt · Meaning-laden',
+    sources: [
+      { icon: '🎙', name: 'Monthly Audit', examples: 'Claude interview · structured reflection · 25 min session' },
+      { icon: '📓', name: 'Daily Journaling', examples: 'Mood · energy · wins · friction logs' },
+      { icon: '👥', name: 'Inner Circle', examples: 'Partner · close friends · mentor · quarterly 5 questions' },
+      { icon: '🔬', name: 'Self-Assessment', examples: 'Tier 1 audit responses · position declarations' },
+      { icon: '💬', name: 'Conversational Input', examples: 'Ad-hoc Claude conversations · voice notes' },
+      { icon: '🧠', name: 'Belief Declarations', examples: 'Epistemic position updates · value confirmations' },
+    ]
+  },
+  {
+    key: 'A',
+    icon: '◈',
+    name: 'Agent Feedback',
+    sub: 'Behavioral · Contextual · Pattern-aware',
+    sources: [
+      { icon: '🤖', name: '13 Domain Agents', examples: 'Each agent writes signals to shared bus' },
+      { icon: '🔗', name: 'Cross-Domain Signals', examples: 'Shared data bus · conflict detection · tension alerts' },
+      { icon: '📊', name: 'Meta-Agent Synthesis', examples: 'Weekly synthesis · pattern matching · anomaly detection' },
+      { icon: '🎩', name: 'Six Hat Sub-Agents', examples: 'White · Red · Black · Yellow · Green · Blue hats' },
+      { icon: '🕵', name: '10th Man Protocol', examples: 'Contrary position analysis · consensus challenges' },
+      { icon: '📈', name: 'Longitudinal Patterns', examples: 'Temporal agent · historical parallels · trend detection' },
+    ]
+  },
+  {
+    key: 'H',
+    icon: '◇',
+    name: 'Hard Data',
+    sub: 'Objective · Measurable · Ground truth',
+    sources: [
+      { icon: '💳', name: 'Financial Systems', examples: 'Bank feeds · brokerage exports · tax returns · receipts' },
+      { icon: '⌚', name: 'Wearable Devices', examples: 'HRV · sleep scores · activity · heart rate · steps' },
+      { icon: '🏥', name: 'Medical Records', examples: 'Lab results · doctor notes · prescriptions · imaging' },
+      { icon: '📅', name: 'Calendar & Time', examples: 'Google Calendar · time tracking · meeting logs' },
+      { icon: '📁', name: 'Google Drive Vault', examples: 'Documents · PDFs · statements · contracts · records' },
+      { icon: '📱', name: 'App Exports', examples: 'Strava · MyFitnessPal · Oura · banking apps · travel apps' },
+      { icon: '🌐', name: 'Web & Social', examples: 'Screen time · browsing patterns · X · SeekingAlpha' },
+      { icon: '🏠', name: 'Property & Assets', examples: 'Mortgage · utility bills · maintenance records · deeds' },
+    ]
+  }
+];
+
+const domains = [
+  { num:'01', icon:'⟳', name:'Temporal',   color:'#3B82F6',  p:['Daily journaling','Monthly audit','Self-assessment'],                    a:['All 13 agents','Meta-agent synthesis','Pattern detection'],              h:['Calendar exports','Time tracking','App usage logs'] },
+  { num:'02', icon:'⚕', name:'Medical',    color:'#F43F5E',  p:['Symptom reporting','Monthly audit','Self-reported wellness'],             a:['Fitness agent cross-ref','Temporal patterns'],                           h:['Lab results','Doctor notes','Wearable vitals','Pharmacy records'] },
+  { num:'03', icon:'◈', name:'Fitness',    color:'#10B981',  p:['Energy self-report','Perceived exertion','Monthly audit'],                a:['Medical agent cross-ref','Nutrition signals','Temporal trends'],         h:['Wearable HRV & sleep','Workout logs','Strava / apps'] },
+  { num:'04', icon:'◉', name:'Nutrition',  color:'#F59E0B',  p:['Food relationship','Hunger cues','Monthly reflection'],                  a:['Fitness agent','Medical agent','Financial spend signals'],               h:['App exports (MyFitnessPal)','Delivery app history','Receipt data'] },
+  { num:'05', icon:'◇', name:'Financial',  color:'#8B5CF6',  p:['Risk tolerance','Autonomy feelings','Monthly audit'],                    a:['Career agent','Home agent','Legal agent','Freedom Number calc'],         h:['Bank feeds','Brokerage exports','Tax returns','Property records'] },
+  { num:'06', icon:'▲', name:'Career',     color:'#06B6D4',  p:['Satisfaction scores','Career ambitions','Inner circle feedback'],        a:['Financial agent','Mind agent','Temporal agent'],                         h:['Calendar','Email metadata','LinkedIn exports','Performance docs'] },
+  { num:'07', icon:'⊡', name:'Legal',      color:'#64748B',  p:['Risk awareness','Estate intentions'],                                    a:['Financial agent','Home agent'],                                          h:['Contract files','Insurance docs','Will & trust PDFs','Expiry dates'] },
+  { num:'08', icon:'◎', name:'Family',     color:'#EC4899',  p:['Presence quality','Was that real?','Inner circle quarterly'],            a:['Social agent','Temporal patterns','Human Moments engine'],               h:['Calendar events','Contact logs','Milestone records'] },
+  { num:'09', icon:'⬡', name:'Home',       color:'#84CC16',  p:['Comfort & satisfaction','Maintenance intentions'],                       a:['Financial agent','Legal agent'],                                         h:['Mortgage docs','Utility history','Warranty files','Maintenance logs'] },
+  { num:'10', icon:'◯', name:'Social',     color:'#F97316',  p:['Relationship energy','Inner circle feedback','Was that real?'],          a:['Family agent','Temporal agent','Entropy tracker'],                       h:['Contact frequency logs','Calendar','Communication metadata'] },
+  { num:'11', icon:'◈', name:'Travel',     color:'#0EA5E9',  p:['Experience ratings','Bucket list desires','Travel style preferences'],   a:['Financial agent','Legal agent (passport/visa)','Temporal agent'],        h:['Booking records','Passport expiry','Loyalty program data','Receipts'] },
+  { num:'12', icon:'◉', name:'Mind',       color:'#A855F7',  p:['Beliefs declared','Monthly audit (deep probe)','Journal sentiment'],     a:['Epistemic agent','Temporal agent','Star of Mind living layer'],          h:['Reading logs','Course completions','Therapy notes','Journal exports'] },
+  { num:'13', icon:'⊕', name:'Epistemic',  color:'#2DD4BF',  p:['Position declarations','Belief updates','10th Man challenge responses'], a:['All domain agents (diversity score)','Six Hat sub-agents','Meta-agent'], h:['Browser/app usage','SeekingAlpha','X screen time','News consumption'] },
+];
+
+// ── Build tree ────────────────────────────────────────────────────────────
+function buildTree() {
+  const canvas = document.getElementById('treeCanvas');
+
+  // Root
+  canvas.innerHTML = `
+    <div class="root-row">
+      <div class="root-node">
+        <div class="root-glyph">✦</div>
+        <div class="root-name">Star of Mind — Digital Me</div>
+        <div class="root-sub">All domain insights flow here</div>
+      </div>
+    </div>
+    <div class="root-stem"></div>
+  `;
+
+  // Trinity horizontal connector
+  const hbar = document.createElement('div');
+  hbar.className = 'trinity-hbar';
+  hbar.style.cssText = 'display:flex;width:100%;height:2px;margin-bottom:0;opacity:0;animation:up 0.5s ease forwards 0.95s;';
+  hbar.innerHTML = `
+    <div style="flex:1;height:2px;background:linear-gradient(90deg,transparent,${COLORS.P.main})"></div>
+    <div style="flex:1;height:2px;background:linear-gradient(90deg,${COLORS.P.main},${COLORS.A.main})"></div>
+    <div style="flex:1;height:2px;background:linear-gradient(90deg,${COLORS.A.main},${COLORS.H.main})"></div>
+    <div style="flex:1;height:2px;background:linear-gradient(90deg,${COLORS.H.main},transparent)"></div>
+  `;
+  canvas.appendChild(hbar);
+
+  // Trinity row
+  const tRow = document.createElement('div');
+  tRow.className = 'trinity-row';
+  tRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;width:100%;opacity:0;animation:up 0.8s ease forwards 1.05s;';
+
+  trinity.forEach((t, ti) => {
+    const C = COLORS[t.key];
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;align-items:center;padding:0 16px;';
+
+    // Stem up
+    col.innerHTML += `<div style="width:2px;height:28px;background:linear-gradient(to top,${C.main},transparent)"></div>`;
+
+    // Pillar
+    col.innerHTML += `
+      <div style="border-radius:8px;padding:16px 24px;text-align:center;width:100%;max-width:260px;
+                  background:${C.bg};border:1.5px solid ${C.border};margin-bottom:0;">
+        <div style="font-size:22px;margin-bottom:6px">${t.icon}</div>
+        <div style="font-family:'Crimson Pro',serif;font-size:20px;font-weight:400;color:${C.main};margin-bottom:3px">${t.name}</div>
+        <div style="font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--dim);text-transform:uppercase">${t.sub}</div>
+      </div>
+    `;
+
+    // Stem down
+    col.innerHTML += `<div style="width:2px;height:28px;background:linear-gradient(to bottom,${C.main},var(--wire))"></div>`;
+
+    // Horizontal branch line
+    col.innerHTML += `<div style="width:85%;height:1px;background:var(--wire);margin-bottom:0"></div>`;
+
+    // Source items
+    const srcGrid = document.createElement('div');
+    srcGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;width:100%;margin-top:0;padding:12px 0;';
+
+    t.sources.forEach((s, si) => {
+      const srcDiv = document.createElement('div');
+      srcDiv.className = 'src';
+      srcDiv.style.cssText = `background:${C.dark};border-color:${C.border.replace('0.25','0.15')};
+                               opacity:0;animation:up 0.5s ease forwards ${1.2 + ti*0.1 + si*0.05}s;`;
+      srcDiv.innerHTML = `
+        <div class="src-icon">${s.icon}</div>
+        <div class="src-name" style="color:${C.main}">${s.name}</div>
+        <div class="src-examples">${s.examples}</div>
+      `;
+      srcGrid.appendChild(srcDiv);
+    });
+
+    col.appendChild(srcGrid);
+
+    // Stem to domain section
+    col.innerHTML += `<div style="width:2px;height:32px;background:linear-gradient(to bottom,var(--wire),transparent)"></div>`;
+
+    // Domain tags flowing from this source
+    const dtagWrap = document.createElement('div');
+    dtagWrap.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:center;gap:4px;padding:0 8px 8px;width:100%;';
+
+    domains.forEach(d => {
+      const key = t.key === 'P' ? d.p : t.key === 'A' ? d.a : d.h;
+      if (key && key.length > 0) {
+        const tag = document.createElement('div');
+        tag.style.cssText = `
+          font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:0.06em;
+          padding:3px 7px;border-radius:2px;
+          background:color-mix(in srgb,${d.color} 8%,transparent);
+          border:1px solid color-mix(in srgb,${d.color} 20%,transparent);
+          color:${d.color};opacity:0;
+          animation:up 0.4s ease forwards ${1.4 + ti*0.05 + domains.indexOf(d)*0.02}s;
+        `;
+        tag.textContent = d.name;
+        dtagWrap.appendChild(tag);
+      }
+    });
+
+    col.appendChild(dtagWrap);
+    tRow.appendChild(col);
+  });
+
+  canvas.appendChild(tRow);
+}
+
+// ── Build mapping grid ────────────────────────────────────────────────────
+function buildMapping() {
+  const grid = document.getElementById('mappingGrid');
+
+  domains.forEach(d => {
+    const card = document.createElement('div');
+    card.className = 'map-card';
+
+    const allSrcs = [
+      ...d.p.map(s => ({ label: s, type: 'P' })),
+      ...d.a.map(s => ({ label: s, type: 'A' })),
+      ...d.h.map(s => ({ label: s, type: 'H' })),
+    ];
+
+    card.innerHTML = `
+      <div class="map-header">
+        <div class="map-icon" style="background:color-mix(in srgb,${d.color} 12%,transparent);
+             border:1px solid color-mix(in srgb,${d.color} 25%,transparent);color:${d.color}">
+          ${d.icon}
+        </div>
+        <div class="map-name" style="color:${d.color}">${d.name}</div>
+        <div class="map-num">D·${d.num}</div>
+      </div>
+      <div class="map-sources">
+        ${allSrcs.map(s => `
+          <span class="map-src-tag" style="
+            color:${COLORS[s.type].main};
+            border-color:${COLORS[s.type].border};
+            background:${COLORS[s.type].dark}
+          ">${s.label}</span>
+        `).join('')}
+      </div>
+    `;
+
+    grid.appendChild(card);
+  });
+
+  // Intersection observer
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 50);
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.map-card').forEach(c => obs.observe(c));
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+buildTree();
+buildMapping();
+</script>
+</body>
+</html>
