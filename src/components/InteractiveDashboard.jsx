@@ -6,9 +6,51 @@ export default function InteractiveDashboard() {
   const [hoveredNode, setHoveredNode] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Live Telemetry Sync State
+  const [telemetry, setTelemetry] = useState(null);
+  const [apiToken, setApiToken] = useState(() => localStorage.getItem('digitalme_api_token') || '');
+  const [isTokenSaved, setIsTokenSaved] = useState(() => !!localStorage.getItem('digitalme_api_token'));
+  const [loadingTelemetry, setLoadingTelemetry] = useState(false);
+  const [telemetryError, setTelemetryError] = useState(null);
+
   useEffect(() => {
     setIsLoaded(true);
   }, []);
+
+  const fetchTelemetry = async () => {
+    setLoadingTelemetry(true);
+    setTelemetryError(null);
+    try {
+      const res = await fetch('https://digital-me-ingest.shane-logan.workers.dev/api/telemetry/summary', {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`
+        }
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('Unauthorized: Invalid API Token');
+        }
+        throw new Error(`HTTP error ${res.status}`);
+      }
+      const json = await res.json();
+      if (json.success) {
+        setTelemetry(json.data);
+      } else {
+        throw new Error(json.error || 'Failed to load telemetry');
+      }
+    } catch (err) {
+      console.error(err);
+      setTelemetryError(err.message);
+    } finally {
+      setLoadingTelemetry(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isTokenSaved && apiToken) {
+      fetchTelemetry();
+    }
+  }, [isTokenSaved, apiToken]);
 
   const handleNodeClick = (num) => {
     if (activeNode === num) {
@@ -97,6 +139,55 @@ export default function InteractiveDashboard() {
           14 agents · 1 shared data bus · 1 sovereign commander
         </p>
       </header>
+
+      {/* ── API TOKEN SETTINGS ── */}
+      <div className="mb-6 p-4 border border-[#1C2840] bg-[#0E1524]/20 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono text-[11px] select-text">
+        <div className="flex items-center gap-2">
+          <span className="text-[#D4A030]">•</span>
+          <span className="text-[#8EA8C8] uppercase tracking-wider">Cloudflare Ingestion API Sync:</span>
+          {isTokenSaved ? (
+            <span className="text-[#10B981] font-semibold uppercase">Connected</span>
+          ) : (
+            <span className="text-[#F43F5E] font-semibold uppercase">Disconnected</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {isTokenSaved ? (
+            <>
+              <span className="text-[#4A6080]">Token: ••••••••••••</span>
+              <button 
+                onClick={() => {
+                  localStorage.removeItem('digitalme_api_token');
+                  setIsTokenSaved(false);
+                  setTelemetry(null);
+                }}
+                className="text-[#F43F5E] hover:underline cursor-pointer bg-transparent border-none outline-none font-semibold uppercase tracking-wider"
+              >
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <>
+              <input 
+                type="password" 
+                placeholder="Enter AUTH_SECRET" 
+                value={apiToken}
+                onChange={(e) => setApiToken(e.target.value)}
+                className="bg-[#0A0E1A] border border-[#1C2840] text-[#D8E4F2] px-3 py-1 rounded outline-none w-48 focus:border-[#D4A030] transition-colors"
+              />
+              <button 
+                onClick={() => {
+                  localStorage.setItem('digitalme_api_token', apiToken);
+                  setIsTokenSaved(true);
+                }}
+                className="bg-[#D4A030] text-[#090D16] px-3 py-1 rounded font-semibold hover:bg-[#E8B84B] transition-colors cursor-pointer uppercase tracking-wider"
+              >
+                Connect
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-12">
         {/* ORBIT GRAPHICS PANEL */}
@@ -295,6 +386,192 @@ export default function InteractiveDashboard() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Dynamic Telemetry Streams */}
+                  {activeDomain.num === "02" && (
+                    <div className="border-t border-[#1C2840]/60 pt-6 mt-6">
+                      <div className="text-[10px] text-[#F43F5E] font-bold uppercase tracking-widest mb-3 font-mono">
+                        📡 Live Hilo BP Telemetry Stream
+                      </div>
+                      {loadingTelemetry && <div className="text-xs text-[#4A6080] font-mono animate-pulse">Fetching records from D1...</div>}
+                      {telemetryError && <div className="text-xs text-[#F43F5E] font-mono">Sync Error: {telemetryError}</div>}
+                      {!loadingTelemetry && !telemetryError && telemetry && (
+                        <div className="flex flex-col gap-3 font-mono">
+                          {telemetry.hilo && telemetry.hilo.length > 0 ? (
+                            <>
+                              {/* BP Sparkline/Chart */}
+                              <div className="bg-[#0A0E1A]/60 border border-[#1C2840] rounded p-4 flex flex-col gap-2 select-text">
+                                <div className="flex justify-between text-[9px] text-[#4A6080] uppercase">
+                                  <span>Recent BP Trends</span>
+                                  <span>Systolic / Diastolic</span>
+                                </div>
+                                <div className="flex items-end justify-between h-20 px-4 pt-2 border-b border-[#1C2840]">
+                                  {telemetry.hilo.slice(0, 10).reverse().map((bp, i) => {
+                                    const sysPercent = Math.min(100, Math.max(10, ((bp.systolic - 90) / 60) * 100));
+                                    const diaPercent = Math.min(100, Math.max(10, ((bp.diastolic - 50) / 50) * 100));
+                                    return (
+                                      <div key={bp.id || i} className="flex flex-col items-center gap-1 w-6 group relative">
+                                        <div className="flex gap-0.5 items-end h-12 w-full justify-center">
+                                          <div style={{ height: `${sysPercent}%` }} className="w-2 bg-[#F43F5E] rounded-t-sm" />
+                                          <div style={{ height: `${diaPercent}%` }} className="w-2 bg-[#F43F5E]/60 rounded-t-sm" />
+                                        </div>
+                                        <span className="text-[8px] text-[#4A6080]">{bp.systolic}/{bp.diastolic}</span>
+                                        {/* Hover Tooltip */}
+                                        <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-[#090D16] border border-[#F43F5E]/30 text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none">
+                                          {bp.date} @ {new Date(bp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}<br/>
+                                          BP: {bp.systolic}/{bp.diastolic} mmHg<br/>
+                                          Pulse: {bp.pulse} bpm
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className="max-h-[160px] overflow-y-auto border border-[#1C2840] rounded bg-[#0A0E1A]/40 select-text">
+                                <table className="w-full text-left text-[11px]">
+                                  <thead>
+                                    <tr className="border-b border-[#1C2840] text-[#4A6080] uppercase tracking-wider text-[9px]">
+                                      <th className="p-2">Date/Time</th>
+                                      <th className="p-2">BP (mmHg)</th>
+                                      <th className="p-2 text-right">Pulse (bpm)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {telemetry.hilo.map((bp) => (
+                                      <tr key={bp.id} className="border-b border-[#1C2840]/30 hover:bg-white/[0.02]">
+                                        <td className="p-2 text-[#8EA8C8]">
+                                          {bp.date} <span className="text-[9px] text-[#4A6080]">{new Date(bp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                        </td>
+                                        <td className="p-2 text-[#D8E4F2] font-semibold">{bp.systolic}/{bp.diastolic}</td>
+                                        <td className="p-2 text-right text-[#8EA8C8]">{bp.pulse}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-xs text-[#4A6080] italic">No blood pressure records found.</div>
+                          )}
+                        </div>
+                      )}
+                      {!isTokenSaved && (
+                        <div className="text-xs text-[#4A6080] italic">Connect your API Token above to stream live biometric records.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeDomain.num === "03" && (
+                    <div className="border-t border-[#1C2840]/60 pt-6 mt-6">
+                      <div className="text-[10px] text-[#10B981] font-bold uppercase tracking-widest mb-3 font-mono">
+                        📡 Live Wearable &amp; Weight Streams (Garmin/Withings)
+                      </div>
+                      {loadingTelemetry && <div className="text-xs text-[#4A6080] font-mono animate-pulse">Fetching records from D1...</div>}
+                      {telemetryError && <div className="text-xs text-[#F43F5E] font-mono">Sync Error: {telemetryError}</div>}
+                      {!loadingTelemetry && !telemetryError && telemetry && (
+                        <div className="flex flex-col gap-4 font-mono text-xs select-text">
+                          {/* Garmin stats */}
+                          <div className="bg-[#0A0E1A]/40 border border-[#1C2840] rounded p-4">
+                            <div className="text-[9px] text-[#10B981] uppercase tracking-wider mb-3">Garmin Connect Sleep &amp; HRV</div>
+                            {telemetry.garmin && telemetry.garmin.length > 0 ? (
+                              <div className="flex flex-col gap-3">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="border border-[#1C2840]/60 p-2 bg-[#090D16]/50 rounded">
+                                    <div className="text-[8px] text-[#4A6080] uppercase">Last Sleep Score</div>
+                                    <div className="text-lg text-[#D8E4F2] font-semibold">{telemetry.garmin[0].sleep_score || '--'} <span className="text-[10px] text-[#4A6080]">/100</span></div>
+                                  </div>
+                                  <div className="border border-[#1C2840]/60 p-2 bg-[#090D16]/50 rounded">
+                                    <div className="text-[8px] text-[#4A6080] uppercase">Last Night HRV</div>
+                                    <div className="text-lg text-[#10B981] font-semibold">{telemetry.garmin[0].last_night_hrv_avg || '--'} <span className="text-[10px] text-[#4A6080]">ms</span></div>
+                                  </div>
+                                </div>
+                                <div className="max-h-[100px] overflow-y-auto">
+                                  <table className="w-full text-left text-[10px]">
+                                    <thead>
+                                      <tr className="text-[#4A6080] border-b border-[#1C2840]/60 uppercase text-[8px]">
+                                        <th className="pb-1">Date</th>
+                                        <th className="pb-1">HRV (Avg/Base)</th>
+                                        <th className="pb-1 text-right">Sleep Stages</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {telemetry.garmin.map((g) => {
+                                        const deepHr = (g.deep_sleep_seconds / 3600).toFixed(1);
+                                        const remHr = (g.rem_sleep_seconds / 3600).toFixed(1);
+                                        const lightHr = (g.light_sleep_seconds / 3600).toFixed(1);
+                                        return (
+                                          <tr key={g.date} className="border-b border-[#1C2840]/20">
+                                            <td className="py-1 text-[#8EA8C8]">{g.date}</td>
+                                            <td className="py-1 text-[#D8E4F2]">
+                                              {g.last_night_hrv_avg} ms <span className="text-[#4A6080]">({g.hrv_baseline_low}-{g.hrv_baseline_high})</span>
+                                            </td>
+                                            <td className="py-1 text-right text-[#8EA8C8]">
+                                              D: {deepHr}h / R: {remHr}h / L: {lightHr}h
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-[#4A6080] italic">No Garmin sleep/HRV records found.</div>
+                            )}
+                          </div>
+
+                          {/* Withings stats */}
+                          <div className="bg-[#0A0E1A]/40 border border-[#1C2840] rounded p-4">
+                            <div className="text-[9px] text-[#10B981] uppercase tracking-wider mb-3">Withings Smart Scale Biometrics</div>
+                            {telemetry.withings && telemetry.withings.length > 0 ? (
+                              <div className="flex flex-col gap-3">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="border border-[#1C2840]/60 p-2 bg-[#090D16]/50 rounded">
+                                    <div className="text-[8px] text-[#4A6080] uppercase">Last Weight</div>
+                                    <div className="text-lg text-[#D8E4F2] font-semibold">{telemetry.withings[0].weight_kg || '--'} <span className="text-[10px] text-[#4A6080]">kg</span></div>
+                                  </div>
+                                  <div className="border border-[#1C2840]/60 p-2 bg-[#090D16]/50 rounded">
+                                    <div className="text-[8px] text-[#4A6080] uppercase">Muscle Mass</div>
+                                    <div className="text-lg text-[#D8E4F2] font-semibold">{telemetry.withings[0].muscle_mass_pct ? `${telemetry.withings[0].muscle_mass_pct.toFixed(1)}%` : '--'}</div>
+                                  </div>
+                                </div>
+                                <div className="max-h-[100px] overflow-y-auto">
+                                  <table className="w-full text-left text-[10px]">
+                                    <thead>
+                                      <tr className="text-[#4A6080] border-b border-[#1C2840]/60 uppercase text-[8px]">
+                                        <th className="pb-1">Date</th>
+                                        <th className="pb-1">Fat / Water</th>
+                                        <th className="pb-1 text-right">Vasc Age / Nerve</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {telemetry.withings.map((w) => (
+                                        <tr key={w.date} className="border-b border-[#1C2840]/20">
+                                          <td className="py-1 text-[#8EA8C8]">{w.date}</td>
+                                          <td className="py-1 text-[#D8E4F2]">
+                                            Fat: {w.visceral_fat_rating} <span className="text-[#4A6080]">| H2O: {w.extracellular_water_liters}L</span>
+                                          </td>
+                                          <td className="py-1 text-right text-[#8EA8C8]">
+                                            VA: {w.vascular_age}y / Nerve: {w.eda_nerve_score}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-[#4A6080] italic">No Withings body composition records found.</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {!isTokenSaved && (
+                        <div className="text-xs text-[#4A6080] italic">Connect your API Token above to stream live biometric records.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })()
