@@ -7,3 +7,10 @@ compatibility_date = "2026-06-20"
 binding = "DB"
 database_name = "digital-me-db"
 database_id = "15d5fc67-60bf-4376-8706-b57bafb1e6d5"
+
+[[kv_namespaces]]
+binding = "GARMIN_AUTH_KV"
+id = "059d2a97589e446a8c4275f1ce087645"
+
+[triggers]
+crons = ["30 6 * * *"]
