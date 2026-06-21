@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { DOMAINS, TRINITY_DATA } from '../data';
 
-export default function HolyTrinityVisualizer() {
+export default function HolyTrinityVisualizer({ apiToken, isTokenSaved, onDisconnect }) {
   const [selectedDomainNum, setSelectedDomainNum] = useState(null);
   const [selectedTrinityKey, setSelectedTrinityKey] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Live Telemetry Sync State
   const [telemetry, setTelemetry] = useState(null);
-  const [apiToken, setApiToken] = useState(() => localStorage.getItem('digitalme_api_token') || '');
-  const [isTokenSaved, setIsTokenSaved] = useState(() => !!localStorage.getItem('digitalme_api_token'));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -47,6 +45,8 @@ export default function HolyTrinityVisualizer() {
   useEffect(() => {
     if (isTokenSaved && apiToken) {
       fetchTelemetry();
+    } else {
+      setTelemetry(null);
     }
   }, [isTokenSaved, apiToken]);
 
@@ -186,42 +186,15 @@ export default function HolyTrinityVisualizer() {
 
           {/* Sync Connection Panel */}
           <div className="flex items-center gap-2 font-mono text-[11px]">
-            {isTokenSaved ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping" />
-                <span className="text-[#10B981] font-semibold uppercase">API Connected</span>
-                <span className="text-[#4A6080]">|</span>
-                <button 
-                  onClick={() => {
-                    localStorage.removeItem('digitalme_api_token');
-                    setIsTokenSaved(false);
-                    setTelemetry(null);
-                  }}
-                  className="text-[#F43F5E] hover:underline cursor-pointer bg-transparent border-none outline-none font-semibold uppercase"
-                >
-                  Disconnect
-                </button>
-              </>
-            ) : (
-              <>
-                <input 
-                  type="password" 
-                  placeholder="Enter AUTH_SECRET" 
-                  value={apiToken}
-                  onChange={(e) => setApiToken(e.target.value)}
-                  className="bg-[#0A0E1A] border border-[#1C2840] text-[#D8E4F2] px-3 py-1 rounded outline-none w-44 focus:border-[#2DD4BF] transition-colors"
-                />
-                <button 
-                  onClick={() => {
-                    localStorage.setItem('digitalme_api_token', apiToken);
-                    setIsTokenSaved(true);
-                  }}
-                  className="bg-[#2DD4BF] text-[#090D16] px-3 py-1 rounded font-semibold hover:bg-teal-400 transition-colors cursor-pointer uppercase"
-                >
-                  Connect
-                </button>
-              </>
-            )}
+            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping" />
+            <span className="text-[#10B981] font-semibold uppercase">API Connected</span>
+            <span className="text-[#4A6080]">|</span>
+            <button 
+              onClick={onDisconnect}
+              className="text-[#F43F5E] hover:underline cursor-pointer bg-transparent border-none outline-none font-semibold uppercase"
+            >
+              Disconnect
+            </button>
           </div>
         </div>
 

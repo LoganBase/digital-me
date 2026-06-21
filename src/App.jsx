@@ -2,9 +2,23 @@ import React, { useState } from 'react';
 import PrinciplesExplorer from './components/PrinciplesExplorer';
 import InteractiveDashboard from './components/InteractiveDashboard';
 import HolyTrinityVisualizer from './components/HolyTrinityVisualizer';
+import DecryptionGate from './components/DecryptionGate';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
+  const [apiToken, setApiToken] = useState(() => localStorage.getItem('digitalme_api_token') || '');
+  const [isTokenSaved, setIsTokenSaved] = useState(() => !!localStorage.getItem('digitalme_api_token'));
+
+  const handleUnlock = (token) => {
+    setApiToken(token);
+    setIsTokenSaved(true);
+  };
+
+  const handleDisconnect = () => {
+    localStorage.removeItem('digitalme_api_token');
+    setApiToken('');
+    setIsTokenSaved(false);
+  };
 
   const tabs = [
     { id: 'home', label: 'Home', icon: '⌂', num: '' },
@@ -133,8 +147,20 @@ export default function App() {
         )}
 
         {activeTab === 'principles' && <PrinciplesExplorer />}
-        {activeTab === 'domains' && <InteractiveDashboard />}
-        {activeTab === 'datasources' && <HolyTrinityVisualizer />}
+        {activeTab === 'domains' && (
+          isTokenSaved ? (
+            <InteractiveDashboard apiToken={apiToken} isTokenSaved={isTokenSaved} onDisconnect={handleDisconnect} />
+          ) : (
+            <DecryptionGate onUnlock={handleUnlock} />
+          )
+        )}
+        {activeTab === 'datasources' && (
+          isTokenSaved ? (
+            <HolyTrinityVisualizer apiToken={apiToken} isTokenSaved={isTokenSaved} onDisconnect={handleDisconnect} />
+          ) : (
+            <DecryptionGate onUnlock={handleUnlock} />
+          )
+        )}
       </main>
 
       {/* ── Footer ── */}

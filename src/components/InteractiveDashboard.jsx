@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { DOMAINS, CONNECTIONS_MAP, BUS_SIGNALS } from '../data';
 
-export default function InteractiveDashboard() {
+export default function InteractiveDashboard({ apiToken, isTokenSaved, onDisconnect }) {
   const [activeNode, setActiveNode] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Live Telemetry Sync State
   const [telemetry, setTelemetry] = useState(null);
-  const [apiToken, setApiToken] = useState(() => localStorage.getItem('digitalme_api_token') || '');
-  const [isTokenSaved, setIsTokenSaved] = useState(() => !!localStorage.getItem('digitalme_api_token'));
   const [loadingTelemetry, setLoadingTelemetry] = useState(false);
   const [telemetryError, setTelemetryError] = useState(null);
 
@@ -49,6 +47,8 @@ export default function InteractiveDashboard() {
   useEffect(() => {
     if (isTokenSaved && apiToken) {
       fetchTelemetry();
+    } else {
+      setTelemetry(null);
     }
   }, [isTokenSaved, apiToken]);
 
@@ -145,47 +145,16 @@ export default function InteractiveDashboard() {
         <div className="flex items-center gap-2">
           <span className="text-[#D4A030]">•</span>
           <span className="text-[#8EA8C8] uppercase tracking-wider">Cloudflare Ingestion API Sync:</span>
-          {isTokenSaved ? (
-            <span className="text-[#10B981] font-semibold uppercase">Connected</span>
-          ) : (
-            <span className="text-[#F43F5E] font-semibold uppercase">Disconnected</span>
-          )}
+          <span className="text-[#10B981] font-semibold uppercase">Connected</span>
         </div>
         <div className="flex items-center gap-2">
-          {isTokenSaved ? (
-            <>
-              <span className="text-[#4A6080]">Token: ••••••••••••</span>
-              <button 
-                onClick={() => {
-                  localStorage.removeItem('digitalme_api_token');
-                  setIsTokenSaved(false);
-                  setTelemetry(null);
-                }}
-                className="text-[#F43F5E] hover:underline cursor-pointer bg-transparent border-none outline-none font-semibold uppercase tracking-wider"
-              >
-                Disconnect
-              </button>
-            </>
-          ) : (
-            <>
-              <input 
-                type="password" 
-                placeholder="Enter AUTH_SECRET" 
-                value={apiToken}
-                onChange={(e) => setApiToken(e.target.value)}
-                className="bg-[#0A0E1A] border border-[#1C2840] text-[#D8E4F2] px-3 py-1 rounded outline-none w-48 focus:border-[#D4A030] transition-colors"
-              />
-              <button 
-                onClick={() => {
-                  localStorage.setItem('digitalme_api_token', apiToken);
-                  setIsTokenSaved(true);
-                }}
-                className="bg-[#D4A030] text-[#090D16] px-3 py-1 rounded font-semibold hover:bg-[#E8B84B] transition-colors cursor-pointer uppercase tracking-wider"
-              >
-                Connect
-              </button>
-            </>
-          )}
+          <span className="text-[#4A6080]">Token: ••••••••••••</span>
+          <button 
+            onClick={onDisconnect}
+            className="text-[#F43F5E] hover:underline cursor-pointer bg-transparent border-none outline-none font-semibold uppercase tracking-wider"
+          >
+            Disconnect
+          </button>
         </div>
       </div>
 
