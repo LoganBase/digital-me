@@ -32,9 +32,7 @@ CREATE TABLE IF NOT EXISTS hilo_bp (
     timestamp TEXT NOT NULL,               -- ISO 8601 full timestamp
     systolic INTEGER NOT NULL,
     diastolic INTEGER NOT NULL,
-    pulse INTEGER NOT NULL,
-    FOREIGN KEY (date) REFERENCES garmin_telemetry (date) ON DELETE CASCADE,
-    FOREIGN KEY (date) REFERENCES withings_telemetry (date) ON DELETE CASCADE
+    pulse INTEGER NOT NULL
 );
 
 -- Create index on date for faster lookups

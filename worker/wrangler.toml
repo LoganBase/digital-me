@@ -2,11 +2,8 @@ name = "digital-me-ingest"
 main = "src/index.js"
 compatibility_date = "2026-06-20"
 
-[vars]
-# Default secret for local development. In production, set via `wrangler secret put AUTH_SECRET`
-AUTH_SECRET = "default_local_dev_token_secret"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "digital-me-db"
-database_id = "00000000-0000-0000-0000-000000000000" # Provisioned via D1 create command
+database_id = "15d5fc67-60bf-4376-8706-b57bafb1e6d5"
