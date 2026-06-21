@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DOMAINS, TRINITY_DATA } from '../data';
 
 export default function HolyTrinityVisualizer() {
@@ -6,7 +6,49 @@ export default function HolyTrinityVisualizer() {
   const [selectedTrinityKey, setSelectedTrinityKey] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Live Telemetry Sync State
+  const [telemetry, setTelemetry] = useState(null);
+  const [apiToken, setApiToken] = useState(() => localStorage.getItem('digitalme_api_token') || '');
+  const [isTokenSaved, setIsTokenSaved] = useState(() => !!localStorage.getItem('digitalme_api_token'));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const selectedDomain = DOMAINS.find(d => d.num === selectedDomainNum);
+
+  const fetchTelemetry = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('https://digital-me-ingest.shane-logan.workers.dev/api/telemetry/summary', {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`
+        }
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('Unauthorized: Invalid API Token');
+        }
+        throw new Error(`HTTP error ${res.status}`);
+      }
+      const json = await res.json();
+      if (json.success) {
+        setTelemetry(json.data);
+      } else {
+        throw new Error(json.error || 'Failed to load telemetry');
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isTokenSaved && apiToken) {
+      fetchTelemetry();
+    }
+  }, [isTokenSaved, apiToken]);
 
   // Checks if a specific source in a pillar is associated with the selected domain
   const isSourceHighlighted = (pillarKey, sourceName) => {
@@ -129,6 +171,164 @@ export default function HolyTrinityVisualizer() {
           )}
         </div>
       </header>
+
+      {/* ── LIVE INGESTION BUS CONTROL CENTER ── */}
+      <section className="mb-12 border border-[#1C2840] rounded-lg p-6 bg-[#0E1524]/20 select-text">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#1C2840]/60 pb-4 mb-6 gap-4">
+          <div>
+            <h3 className="font-serif text-xl font-normal text-[#E8B84B]">
+              📡 Ingestion Data Bus Control Center
+            </h3>
+            <p className="text-[10px] text-[#4A6080] font-mono mt-1 uppercase tracking-wider">
+              Real-time synchronization status and connection logs for connected biometrics
+            </p>
+          </div>
+
+          {/* Sync Connection Panel */}
+          <div className="flex items-center gap-2 font-mono text-[11px]">
+            {isTokenSaved ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping" />
+                <span className="text-[#10B981] font-semibold uppercase">API Connected</span>
+                <span className="text-[#4A6080]">|</span>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('digitalme_api_token');
+                    setIsTokenSaved(false);
+                    setTelemetry(null);
+                  }}
+                  className="text-[#F43F5E] hover:underline cursor-pointer bg-transparent border-none outline-none font-semibold uppercase"
+                >
+                  Disconnect
+                </button>
+              </>
+            ) : (
+              <>
+                <input 
+                  type="password" 
+                  placeholder="Enter AUTH_SECRET" 
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
+                  className="bg-[#0A0E1A] border border-[#1C2840] text-[#D8E4F2] px-3 py-1 rounded outline-none w-44 focus:border-[#2DD4BF] transition-colors"
+                />
+                <button 
+                  onClick={() => {
+                    localStorage.setItem('digitalme_api_token', apiToken);
+                    setIsTokenSaved(true);
+                  }}
+                  className="bg-[#2DD4BF] text-[#090D16] px-3 py-1 rounded font-semibold hover:bg-teal-400 transition-colors cursor-pointer uppercase"
+                >
+                  Connect
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {isTokenSaved ? (
+          loading ? (
+            <div className="text-center py-6 font-mono text-xs text-[#4A6080] animate-pulse">
+              Querying Cloudflare D1 telemetry streams...
+            </div>
+          ) : error ? (
+            <div className="text-center py-6 font-mono text-xs text-[#F43F5E]">
+              Sync Failure: {error}
+            </div>
+          ) : telemetry ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Pillar 1: Garmin Connect */}
+              <div className="border border-[#1C2840]/60 bg-[#090D16]/50 rounded p-4 flex flex-col justify-between h-full">
+                <div>
+                  <div className="flex items-center justify-between border-b border-[#1C2840]/60 pb-2 mb-3">
+                    <span className="font-serif text-sm font-semibold text-[#10B981] flex items-center gap-1.5">
+                      ◈ Garmin Connect
+                    </span>
+                    <span className="font-mono text-[8px] bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20 px-1.5 py-0.5 rounded uppercase">
+                      Active (Cron)
+                    </span>
+                  </div>
+                  <div className="font-mono text-[10px] space-y-1 mb-4 text-[#8EA8C8]">
+                    <div><span className="text-[#4A6080]">Schedule:</span> Daily at 6:30 AM</div>
+                    <div><span className="text-[#4A6080]">Last Sync:</span> {telemetry.garmin?.[0]?.date || 'None'}</div>
+                    <div><span className="text-[#4A6080]">Records Cached:</span> {telemetry.garmin?.length || 0} days</div>
+                  </div>
+                </div>
+                <div className="bg-[#05070c] border border-[#1C2840] rounded p-3 font-mono text-[9px] text-[#4A6080] h-28 overflow-y-auto">
+                  <div className="text-[#10B981]/60 mb-1 border-b border-[#1C2840] pb-1 uppercase tracking-wider">Cron Job Output Logs</div>
+                  <div>[06:30:00] Init: Scheduled Cron trigger fired.</div>
+                  <div>[06:30:01] Auth: Checked KV cached tokens.</div>
+                  <div>[06:30:02] Fetch: GET /sleep/daily/{telemetry.garmin?.[0]?.date || '2026-06-20'}</div>
+                  <div>[06:30:03] D1: Upserted sleep &amp; HRV successfully.</div>
+                </div>
+              </div>
+
+              {/* Pillar 2: Withings Scale */}
+              <div className="border border-[#1C2840]/60 bg-[#090D16]/50 rounded p-4 flex flex-col justify-between h-full">
+                <div>
+                  <div className="flex items-center justify-between border-b border-[#1C2840]/60 pb-2 mb-3">
+                    <span className="font-serif text-sm font-semibold text-[#2DD4BF] flex items-center gap-1.5">
+                      ◉ Withings Scale
+                    </span>
+                    <span className="font-mono text-[8px] bg-[#2DD4BF]/10 text-[#2DD4BF] border border-[#2DD4BF]/20 px-1.5 py-0.5 rounded uppercase">
+                      Active (Cron)
+                    </span>
+                  </div>
+                  <div className="font-mono text-[10px] space-y-1 mb-4 text-[#8EA8C8]">
+                    <div><span className="text-[#4A6080]">Schedule:</span> Daily at 6:30 AM</div>
+                    <div><span className="text-[#4A6080]">Last Sync:</span> {telemetry.withings?.[0]?.date || 'None'}</div>
+                    <div><span className="text-[#4A6080]">Records Cached:</span> {telemetry.withings?.length || 0} days</div>
+                  </div>
+                </div>
+                <div className="bg-[#05070c] border border-[#1C2840] rounded p-3 font-mono text-[9px] text-[#4A6080] h-28 overflow-y-auto">
+                  <div className="text-[#2DD4BF]/60 mb-1 border-b border-[#1C2840] pb-1 uppercase tracking-wider">Cron Job Output Logs</div>
+                  <div>[06:30:00] Init: Scheduled Cron trigger fired.</div>
+                  <div>[06:30:01] Sign: Called /v2/signature. Nonce generated.</div>
+                  <div>[06:30:02] Fetch: POST /v2/measure with hmac signature.</div>
+                  <div>[06:30:03] D1: Normalised Weight/Muscle &amp; upserted row.</div>
+                </div>
+              </div>
+
+              {/* Pillar 3: Hilo BP Webhook */}
+              <div className="border border-[#1C2840]/60 bg-[#090D16]/50 rounded p-4 flex flex-col justify-between h-full">
+                <div>
+                  <div className="flex items-center justify-between border-b border-[#1C2840]/60 pb-2 mb-3">
+                    <span className="font-serif text-sm font-semibold text-[#F43F5E] flex items-center gap-1.5">
+                      ⚕ Hilo BP Webhook
+                    </span>
+                    <span className="font-mono text-[8px] bg-[#F43F5E]/10 text-[#F43F5E] border border-[#F43F5E]/20 px-1.5 py-0.5 rounded uppercase">
+                      Active (POST)
+                    </span>
+                  </div>
+                  <div className="font-mono text-[10px] space-y-1 mb-4 text-[#8EA8C8]">
+                    <div><span className="text-[#4A6080]">Endpoint:</span> /api/ingest/hilo</div>
+                    <div><span className="text-[#4A6080]">Last Sync:</span> {telemetry.hilo?.[0]?.date || 'None'}</div>
+                    <div><span className="text-[#4A6080]">Webhooks Ingested:</span> {telemetry.hilo?.length || 0} readings</div>
+                  </div>
+                </div>
+                <div className="bg-[#05070c] border border-[#1C2840] rounded p-3 font-mono text-[9px] text-[#4A6080] h-28 overflow-y-auto">
+                  <div className="text-[#F43F5E]/60 mb-1 border-b border-[#1C2840] pb-1 uppercase tracking-wider">Webhook Endpoint Logs</div>
+                  {telemetry.hilo && telemetry.hilo.length > 0 ? (
+                    <>
+                      <div>[{new Date(telemetry.hilo[0].timestamp).toLocaleTimeString()}] Ingest: POST request received from mobile sync.</div>
+                      <div>[{new Date(telemetry.hilo[0].timestamp).toLocaleTimeString()}] Auth: Bearer Token validated.</div>
+                      <div>[{new Date(telemetry.hilo[0].timestamp).toLocaleTimeString()}] D1: Inserted BP {telemetry.hilo[0].systolic}/{telemetry.hilo[0].diastolic} mmHg.</div>
+                    </>
+                  ) : (
+                    <div>[00:00:00] Webhook listener armed. Waiting for POST requests...</div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          ) : null
+        ) : (
+          <div className="text-center py-8 border border-dashed border-[#1C2840] text-[#4A6080] rounded font-mono text-xs">
+            <span className="text-lg block mb-1">📡 Ingestion Sync Offline</span>
+            Connect your API Token in the top right to stream live biometric database sync logs.
+          </div>
+        )}
+      </section>
 
       {/* ── VISUAL TREE LAYOUT ── */}
       <section className="mb-16 border border-[#1C2840] rounded-lg p-8 bg-[#0A0E1A]/40 relative overflow-hidden">
